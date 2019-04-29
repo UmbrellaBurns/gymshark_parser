@@ -17,6 +17,9 @@ NEWSPIDER_MODULE = 'gymshark.spiders'
 
 ASSETS_DIR = os.path.join(os.path.split(os.path.dirname(__file__))[0], 'assets')
 
+if not os.path.exists(ASSETS_DIR):
+    os.mkdir(ASSETS_DIR)
+
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'gymshark (+http://www.yourdomain.com)'
 
