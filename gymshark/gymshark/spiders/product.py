@@ -1,12 +1,9 @@
 import re
 import json
 
-import requests
 import scrapy
 
-from instagram.instagram.items import InstagramProfileItem
-
-p = r"(?P<script_stat><script type=\"text/javascript\">window\._sharedData = )(?P<config>.+)(?P<script_end>;</script>)"
+p = r"(?P<conf_start>var gtmPushData =\s)(?P<config>{[^;]+ee-productView[^;]+})(?P<conf_end>;)"
 PAGE_CONFIG_PATTERN = re.compile(p)
 
 
@@ -17,26 +14,53 @@ class ProductSpider(scrapy.Spider):
 
     allowed_domains = ['uk.gymshark.com']
 
+    schema = 'https'
+
     base_url = 'https://uk.gymshark.com'
 
+    all_products_pagination = 'collections/all-products/womens'
+
     start_urls = [
-        'https://uk.gymshark.com/collections/all-products/womens'
+        f'{base_url}/{all_products_pagination}'
     ]
 
     def parse_product(self, response):
         """Parse product page"""
         self.log(f'Parse product: {response.url}')
 
+        match = PAGE_CONFIG_PATTERN.search(response.text)
+
+        if match:
+            try:
+                config = match.groupdict()['config']
+                products_meta = json.loads(config.replace("'", '"'))
+
+                current_product = products_meta['ecommerce']['detail']['products'][0]
+            except (json.JSONDecodeError, KeyError, IndexError, AttributeError) as e:
+                self.log(f'Config parsing error: {str(e)}')
+            else:
+                product = {
+                    'id': current_product['id'],
+                    'url': response.url,
+                    'name': current_product['name'],
+                    'price': current_product['price'],
+                    'category': current_product['category'],
+                    'photos': response.css('img.grid-view-item__image::attr(src)').extract()
+                }
+
+                product['photos'] = [f'{self.schema}:{url}' for url in product['photos']]
+
+                yield product
+
     def parse(self, response):
         """Parse main page with pagination"""
         current_page = int(response.css('span.page.current strong::text').get())
+        next_page = current_page + 1
         max_page = int(response.xpath("//span[@class='next']/preceding-sibling::span[@class='page'][1]/a/text()").get())
 
-        for product_item in response.css('div.product-grid div.grid__item'):
-            
+        for product_url in response.css('div.product-grid div.grid__item div.prod-image-wrap a::attr(href)').extract():
+            yield scrapy.Request(url=f'{self.base_url}{product_url}', callback=self.parse_product)
 
-            for profile in chain(profile['followers'], profile['following']):
-                profile_link = f"{self.base_url}/{profile['username']}/"
-                yield response.follow(url=profile_link, cookies=dict(self.requests_cookies), callback=self.parse)
-
-            yield profile
+        if next_page <= max_page:
+            next_page_url = f'{self.base_url}/{self.all_products_pagination}?page={next_page}'
+            yield response.follow(url=next_page_url, callback=self.parse)
