@@ -45,7 +45,7 @@ class ProductSpider(scrapy.Spider):
                     'name': current_product['name'],
                     'price': current_product['price'],
                     'category': current_product['category'],
-                    'photos': response.css('ul img.grid-view-item__image::attr(src)').extract()
+                    'photos': response.css('ul.product-photo-slider img.grid-view-item__image::attr(src)').extract()
                 }
 
                 product['photos'] = [f'{self.schema}:{url}' for url in product['photos']]
@@ -58,7 +58,7 @@ class ProductSpider(scrapy.Spider):
         next_page = current_page + 1
         max_page = int(response.xpath("//span[@class='next']/preceding-sibling::span[@class='page'][1]/a/text()").get())
 
-        for product_url in response.css('div.product-grid div.grid__item div.prod-image-wrap a::attr(href)').extract():
+        for product_url in response.css('div.product-grid div.grid__item div.prod-image-wrap a::attr(href)').extract()[:2]:
             yield scrapy.Request(url=f'{self.base_url}{product_url}', callback=self.parse_product)
 
         if next_page <= max_page:
