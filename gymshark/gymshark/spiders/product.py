@@ -45,7 +45,7 @@ class ProductSpider(scrapy.Spider):
                     'name': current_product['name'],
                     'price': current_product['price'],
                     'category': current_product['category'],
-                    'photos': response.css('img.grid-view-item__image::attr(src)').extract()
+                    'photos': response.css('ul img.grid-view-item__image::attr(src)').extract()
                 }
 
                 product['photos'] = [f'{self.schema}:{url}' for url in product['photos']]
