@@ -37,7 +37,7 @@ class GymsharkPipeline(object):
         :param urls: files to download
         :param download_dir: target directory
         """
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False, limit=1)) as session:
             tasks = []
             for url in urls:
                 tasks.append(self.download_file(session=session, url=url, download_dir=download_dir))
