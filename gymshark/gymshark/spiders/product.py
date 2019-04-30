@@ -20,10 +20,8 @@ class ProductSpider(scrapy.Spider):
 
     base_url = 'https://uk.gymshark.com'
 
-    all_products_pagination = 'collections/all-products/womens'
-
     start_urls = [
-        f'{base_url}/{all_products_pagination}'
+        f'{base_url}/collections/all-products/womens'
     ]
 
     def parse_product(self, response):
@@ -66,5 +64,5 @@ class ProductSpider(scrapy.Spider):
             yield scrapy.Request(url=f'{self.base_url}{product_url}', callback=self.parse_product)
 
         if next_page <= max_page:
-            next_page_url = f'{self.base_url}/{self.all_products_pagination}?page={next_page}'
+            next_page_url = f'{response.url}?page={next_page}'
             yield response.follow(url=next_page_url, callback=self.parse)

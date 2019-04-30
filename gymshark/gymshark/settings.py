@@ -76,7 +76,7 @@ ITEM_PIPELINES = {
 
 IMAGES_STORE = ASSETS_DIR
 
-SPLIT_PRODUCTS_BY_CATEGORY = False
+SPLIT_PRODUCTS_BY_CATEGORY = True
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://doc.scrapy.org/en/latest/topics/autothrottle.html
