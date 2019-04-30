@@ -11,4 +11,10 @@ import scrapy
 class GymsharkItem(scrapy.Item):
     # define the fields for your item here like:
     # name = scrapy.Field()
-    pass
+
+    id = scrapy.Field()
+    url = scrapy.Field()
+    name = scrapy.Field()
+    price = scrapy.Field()
+    category = scrapy.Field()
+    images = scrapy.Field()

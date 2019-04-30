@@ -71,9 +71,12 @@ DOWNLOAD_DELAY = 3
 # See https://doc.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
    'gymshark.pipelines.GymsharkPipeline': 300,
+   'gymshark.pipelines.ProductImagesPipeline': 400,
 }
 
-FILES_STORE = '/path/to/valid/dir'
+IMAGES_STORE = ASSETS_DIR
+
+SPLIT_PRODUCTS_BY_CATEGORY = False
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://doc.scrapy.org/en/latest/topics/autothrottle.html

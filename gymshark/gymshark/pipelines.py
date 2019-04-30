@@ -5,59 +5,76 @@
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: https://doc.scrapy.org/en/latest/topics/item-pipeline.html
 import os
-import json
-from contextlib import closing
-import asyncio
+import re
 
-import aiohttp
-import aiofiles
 from requests.utils import urlparse
+from scrapy import Request
+from scrapy.exporters import JsonItemExporter
+from scrapy.pipelines.images import ImagesPipeline
 
-from .settings import ASSETS_DIR
+from .utils import slugify
+from .settings import ASSETS_DIR, SPLIT_PRODUCTS_BY_CATEGORY
+
+IMAGE_SIZE_PATTERN = re.compile(r'(?P<width>\d+)(?P<x>x)(?P<height>\d+)')
 
 
 class GymsharkPipeline(object):
 
-    async def download_file(self, session, url, download_dir):
-        """Async file downloading
-        :param session: aiohttp.ClientSession()
-        :param download_dir: target directory
-        """
-        async with session.get(url) as response:
-            if response.status == 200:
-                content = await response.read()
-
-                filename = os.path.split(urlparse(url).path)[1]  # extract filename from URL
-
-                async with aiofiles.open(os.path.join(download_dir, filename), 'wb') as f:
-                    await f.write(content)
-
-    async def download_files(self, urls, download_dir):
-        """Async downloading via Aiohttp
-        :param urls: files to download
-        :param download_dir: target directory
-        """
-        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False, limit=1)) as session:
-            tasks = []
-            for url in urls:
-                tasks.append(self.download_file(session=session, url=url, download_dir=download_dir))
-            await asyncio.gather(*tasks)
-
     def process_item(self, item, spider):
-        """Pipeline item processing
-        :param item: result of 'spider.parse' method
-        :param spider: current spider
-        :return: processed item
-        """
-        product_dir = os.path.join(ASSETS_DIR, item['id'])
+        """Save item to JSON"""
+        base_dir = ASSETS_DIR
+
+        if SPLIT_PRODUCTS_BY_CATEGORY:
+            try:
+                category_dir = os.path.join(ASSETS_DIR, slugify(item['category']))
+            except (re.error, Exception):
+                category_dir = ''
+
+            if category_dir and not os.path.exists(category_dir):
+                os.mkdir(category_dir)
+
+            base_dir = os.path.join(base_dir, category_dir)
+
+        product_dir = os.path.join(base_dir, item['id'])
 
         if not os.path.exists(product_dir):
             os.mkdir(product_dir)
 
-        with open(os.path.join(product_dir, 'info.json'), 'w') as f:
-            f.write(json.dumps(item, indent=4))
-
-        with closing(asyncio.new_event_loop()) as loop:
-            loop.run_until_complete(self.download_files(item['photos'], download_dir=product_dir))
+        with open(os.path.join(product_dir, 'info.json'), 'wb') as f:
+            exporter = JsonItemExporter(file=f, encoding='utf-8', indent=4)
+            exporter.export_item(item)
 
         return item
+
+
+class ProductImagesPipeline(ImagesPipeline):
+    """Download & save item photos to specified directory"""
+
+    def get_media_requests(self, item, info):
+        """Async images downloading"""
+        base_dir = ''
+
+        if SPLIT_PRODUCTS_BY_CATEGORY:
+            try:
+                category_dir = slugify(item['category'])
+            except (re.error, Exception):
+                category_dir = ''
+
+            base_dir = category_dir
+
+        base_dir = os.path.join(base_dir, item['id'])
+
+        for image in item['images']:
+            yield Request(image, meta={'base_dir': base_dir, 'url': image})
+
+    def file_path(self, request, response=None, info=None):
+        image_guid = os.path.split(urlparse(request.meta['url']).path)[1]
+
+        match = IMAGE_SIZE_PATTERN.search(request.meta['url'])
+
+        if match:
+            subdir = match.group()
+        else:
+            subdir = ''
+
+        return os.path.join(request.meta['base_dir'], subdir, image_guid)

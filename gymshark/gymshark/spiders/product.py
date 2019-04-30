@@ -3,6 +3,8 @@ import json
 
 import scrapy
 
+from gymshark.items import GymsharkItem
+
 p = r"(?P<conf_start>var gtmPushData =\s)(?P<config>{[^;]+ee-productView[^;]+})(?P<conf_end>;)"
 PAGE_CONFIG_PATTERN = re.compile(p)
 
@@ -39,16 +41,18 @@ class ProductSpider(scrapy.Spider):
             except (json.JSONDecodeError, KeyError, IndexError, AttributeError) as e:
                 self.log(f'Config parsing error: {str(e)}')
             else:
-                product = {
-                    'id': current_product['id'],
-                    'url': response.url,
-                    'name': current_product['name'],
-                    'price': current_product['price'],
-                    'category': current_product['category'],
-                    'photos': response.css('ul.product-photo-slider img.grid-view-item__image::attr(src)').extract()
-                }
+                product = GymsharkItem(
+                    id=current_product['id'],
+                    url=response.url,
+                    name=current_product['name'],
+                    price=current_product['price'],
+                    category=current_product['category'],
+                )
 
-                product['photos'] = [f'{self.schema}:{url}' for url in product['photos']]
+                images = response.css('ul.support__images.desktop--images img::attr(src)').extract() or []
+                images.extend(response.css('div#featureimage img::attr(src)').extract())
+
+                product['images'] = [f'{self.schema}:{url}' for url in images]
 
                 yield product
 

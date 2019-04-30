@@ -2,3 +2,4 @@ aiofiles==0.4.0
 aiohttp==3.5.4
 requests==2.21.0
 Scrapy==1.6.0
+Pillow==6.0.0
